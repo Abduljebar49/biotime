@@ -78,7 +78,7 @@ export interface DepartmentWiseReport {
   present_count: number;
   absent_count: number;
   late_count: number;
-  attendance_percentage: number;
+  attendance_percentage: number | null;
 }
 
 export interface EmployeePerformance {
@@ -117,7 +117,7 @@ export interface ReportingState {
   departmentWiseReport: DepartmentWiseReport[];
   employeePerformance: EmployeePerformance[];
   attendanceTrend: AttendanceTrend[];
-  
+
   // UI state
   loading: boolean;
   error: string | null;
@@ -134,7 +134,7 @@ export interface ReportingActions {
   getDepartmentWiseReport: () => Promise<DepartmentWiseReport[]>;
   getEmployeePerformance: () => Promise<EmployeePerformance[]>;
   getAttendanceTrend: (days?: number) => Promise<AttendanceTrend[]>;
-  
+
   // Utility methods
   clearError: () => void;
   clearMessage: () => void;
@@ -164,12 +164,12 @@ export const useReportingStore = create<ReportingStore>()(
       try {
         const response = await api.get('/reports/today');
         const todayReport = response.data.data;
-        
-        set({ 
+
+        set({
           todayReport,
-          loading: false 
+          loading: false
         });
-        
+
         return todayReport;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch today's report";
@@ -185,13 +185,26 @@ export const useReportingStore = create<ReportingStore>()(
       set({ loading: true, error: null });
       try {
         const response = await api.get('/reports/weekly');
-        const weeklyReport = response.data.data;
-        
-        set({ 
+        const weeklyReportData = response.data.data;
+
+        // Convert string values to numbers and trim week_day whitespace
+        const weeklyReport: WeeklyReport[] = weeklyReportData.map((item: any) => ({
+          att_date: item.att_date,
+          week_day: item.week_day.trim(), // Remove trailing spaces from week_day
+          total_employees: Number(item.total_employees),
+          present: Number(item.present),
+          absent: Number(item.absent),
+          late: Number(item.late),
+          early_leave: Number(item.early_leave),
+          overtime: Number(item.overtime),
+          attendance_percentage: Number(item.attendance_percentage)
+        }));
+
+        set({
           weeklyReport,
-          loading: false 
+          loading: false
         });
-        
+
         return weeklyReport;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch weekly report";
@@ -207,13 +220,32 @@ export const useReportingStore = create<ReportingStore>()(
       set({ loading: true, error: null });
       try {
         const response = await api.get('/reports/monthly');
-        const monthlyReport = response.data.data;
-        
-        set({ 
+        const monthlyReportData = response.data.data;
+
+        const monthlyReport: MonthlyReport = {
+          total_employees: Number(monthlyReportData.total_employees),
+          total_days: Number(monthlyReportData.total_days),
+          total_present: Number(monthlyReportData.total_present),
+          total_absent: Number(monthlyReportData.total_absent),
+          total_late: Number(monthlyReportData.total_late),
+          total_early_leave: Number(monthlyReportData.total_early_leave),
+          total_overtime: Number(monthlyReportData.total_overtime),
+          sick_leave_count: Number(monthlyReportData.sick_leave_count),
+          vacation_leave_count: Number(monthlyReportData.vacation_leave_count),
+          maternal_leave_count: Number(monthlyReportData.maternal_leave_count),
+          attendance_percentage: monthlyReportData.attendance_percentage !== null
+            ? Number(monthlyReportData.attendance_percentage)
+            : 0,
+          avg_daily_hours: monthlyReportData.avg_daily_hours !== null
+            ? Number(monthlyReportData.avg_daily_hours)
+            : 0
+        };
+
+        set({
           monthlyReport,
-          loading: false 
+          loading: false
         });
-        
+
         return monthlyReport;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch monthly report";
@@ -232,12 +264,12 @@ export const useReportingStore = create<ReportingStore>()(
           params: { date }
         });
         const absenceReasons = response.data.data;
-        
-        set({ 
+
+        set({
           absenceReasons,
-          loading: false 
+          loading: false
         });
-        
+
         return absenceReasons;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch absence reasons";
@@ -256,12 +288,12 @@ export const useReportingStore = create<ReportingStore>()(
           params: { limit }
         });
         const recentAttendance = response.data.data;
-        
-        set({ 
+
+        set({
           recentAttendance,
-          loading: false 
+          loading: false
         });
-        
+
         return recentAttendance;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch recent attendance";
@@ -277,13 +309,27 @@ export const useReportingStore = create<ReportingStore>()(
       set({ loading: true, error: null });
       try {
         const response = await api.get('/reports/department-wise');
-        const departmentWiseReport = response.data.data;
-        
-        set({ 
+        const departmentWiseReportData = response.data.data;
+
+        // Convert string values to numbers and handle null values
+        const departmentWiseReport: DepartmentWiseReport[] = departmentWiseReportData.map((item: any) => ({
+          department_id: Number(item.department_id),
+          dept_name: item.dept_name,
+          dept_code: item.dept_code,
+          total_employees: Number(item.total_employees),
+          present_count: Number(item.present_count),
+          absent_count: Number(item.absent_count),
+          late_count: Number(item.late_count),
+          attendance_percentage: item.attendance_percentage !== null
+            ? Number(item.attendance_percentage)
+            : null
+        }));
+
+        set({
           departmentWiseReport,
-          loading: false 
+          loading: false
         });
-        
+
         return departmentWiseReport;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch department-wise report";
@@ -298,14 +344,14 @@ export const useReportingStore = create<ReportingStore>()(
     getEmployeePerformance: async () => {
       set({ loading: true, error: null });
       try {
-        const response = await api.get('/reports/employee-performance');
+        const response = await api.get('/reports/employee-performance-report');
         const employeePerformance = response.data.data;
         
-        set({ 
+        set({
           employeePerformance,
-          loading: false 
+          loading: false
         });
-        
+
         return employeePerformance;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch employee performance report";
@@ -324,12 +370,12 @@ export const useReportingStore = create<ReportingStore>()(
           params: { days }
         });
         const attendanceTrend = response.data.data;
-        
-        set({ 
+
+        set({
           attendanceTrend,
-          loading: false 
+          loading: false
         });
-        
+
         return attendanceTrend;
       } catch (error: any) {
         const errorMessage = error.response?.data?.message || "Failed to fetch attendance trend";

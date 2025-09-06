@@ -10,6 +10,6 @@ export async function reportingRoutes(fastify: FastifyInstance) {
   fastify.get('/reports/absence-reasons', ReportingController.getAbsenceReasons);
   fastify.get('/reports/recent-attendance', ReportingController.getRecentAttendance);
   fastify.get('/reports/department-wise', ReportingController.getDepartmentWiseReport);
-  fastify.get('/reports/employee-performance', ReportingController.getEmployeePerformance);
+  fastify.get('/reports/employee-performance-report', ReportingController.getEmployeePerformance);
   fastify.get('/reports/attendance-trend', ReportingController.getAttendanceTrend);
 }

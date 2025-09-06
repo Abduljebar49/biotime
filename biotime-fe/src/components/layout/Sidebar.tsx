@@ -10,11 +10,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentPath }) => {
   const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: 'fas fa-chart-pie' },
     { name: 'Attendance', path: '/attendance', icon: 'fas fa-list' },
-    { name: 'Analytics', path: '/analytics', icon: 'fas fa-chart-line' },
+    // { name: 'Analytics', path: '/analytics', icon: 'fas fa-chart-line' },
     { name: 'Reports', path: '/reports', icon: 'fas fa-file-alt' },
     { name: 'Employees', path: '/employees', icon: 'fas fa-users' },
     { name: 'Departments', path: '/departments', icon: 'fas fa-building' },
-    { name: 'Settings', path: '/settings', icon: 'fas fa-cog' },
+    // { name: 'Settings', path: '/settings', icon: 'fas fa-cog' },
   ];
 
   return (

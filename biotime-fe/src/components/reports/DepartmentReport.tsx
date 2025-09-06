@@ -7,7 +7,35 @@ interface DepartmentReportProps {
 }
 
 const DepartmentReport: React.FC<DepartmentReportProps> = ({ reports }) => {
-  const sortedReports = [...reports].sort((a, b) => b.attendance_percentage - a.attendance_percentage);
+  // Filter out reports with null attendance_percentage for sorting and calculations
+  const reportsWithAttendance = reports.filter(report => report.attendance_percentage !== null);
+  const sortedReports = [...reportsWithAttendance].sort((a, b) => 
+    (b.attendance_percentage || 0) - (a.attendance_percentage || 0)
+  );
+
+  // Helper functions to handle null values
+  const getAttendancePercentage = (report: DepartmentWiseReportType) => {
+    return report.attendance_percentage !== null ? report.attendance_percentage : 0;
+  };
+
+  const getPerformanceClass = (percentage: number | null) => {
+    if (percentage === null) return 'bg-gray-100 text-gray-800';
+    if (percentage >= 95) return 'bg-green-100 text-green-800';
+    if (percentage >= 85) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
+  const getPerformanceText = (percentage: number | null) => {
+    if (percentage === null) return 'No data';
+    return `${percentage}%`;
+  };
+
+  // Calculate average attendance percentage
+  const calculateAvgAttendance = () => {
+    if (reportsWithAttendance.length === 0) return 0;
+    const total = reportsWithAttendance.reduce((sum, report) => sum + (report.attendance_percentage || 0), 0);
+    return total / reportsWithAttendance.length;
+  };
 
   return (
     <div className="space-y-6">
@@ -31,7 +59,7 @@ const DepartmentReport: React.FC<DepartmentReportProps> = ({ reports }) => {
         </div>
         <div className="bg-orange-50 p-4 rounded-lg">
           <div className="text-2xl font-bold text-orange-600">
-            {(reports.reduce((sum, report) => sum + report.attendance_percentage, 0) / reports.length).toFixed(1)}%
+            {calculateAvgAttendance().toFixed(1)}%
           </div>
           <div className="text-sm text-orange-800">Avg Attendance</div>
         </div>
@@ -70,7 +98,7 @@ const DepartmentReport: React.FC<DepartmentReportProps> = ({ reports }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {sortedReports.map((report, index) => (
+              {reports.map((report, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {report.dept_name}
@@ -91,22 +119,18 @@ const DepartmentReport: React.FC<DepartmentReportProps> = ({ reports }) => {
                     {report.late_count}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      report.attendance_percentage >= 95
-                        ? 'bg-green-100 text-green-800'
-                        : report.attendance_percentage >= 85
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {report.attendance_percentage}%
+                    <span className={`px-2 py-1 rounded-full text-xs ${getPerformanceClass(report.attendance_percentage)}`}>
+                      {getPerformanceText(report.attendance_percentage)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="h-2 rounded-full bg-green-500"
-                        style={{ width: `${report.attendance_percentage}%` }}
-                      ></div>
+                      {report.attendance_percentage !== null && (
+                        <div
+                          className="h-2 rounded-full bg-green-500"
+                          style={{ width: `${report.attendance_percentage}%` }}
+                        ></div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -140,6 +164,11 @@ const DepartmentReport: React.FC<DepartmentReportProps> = ({ reports }) => {
                 </span>
               </div>
             ))}
+            {sortedReports.length === 0 && (
+              <div className="text-center text-gray-500 py-4">
+                No attendance data available
+              </div>
+            )}
           </div>
         </div>
 
@@ -165,6 +194,11 @@ const DepartmentReport: React.FC<DepartmentReportProps> = ({ reports }) => {
                 </span>
               </div>
             ))}
+            {sortedReports.length === 0 && (
+              <div className="text-center text-gray-500 py-4">
+                No attendance data available
+              </div>
+            )}
           </div>
         </div>
       </div>

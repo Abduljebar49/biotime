@@ -76,6 +76,28 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ report }) => {
     }
   ];
 
+  // Helper functions to handle null values
+  const getAttendancePercentage = () => {
+    return report.attendance_percentage !== null ? report.attendance_percentage : 0;
+  };
+
+  const getAvgDailyHours = () => {
+    return report.avg_daily_hours !== null ? report.avg_daily_hours : 0;
+  };
+
+  const calculateAbsenteeismRate = () => {
+    const totalDays = report.total_present + report.total_absent;
+    return totalDays > 0 ? (report.total_absent / totalDays) * 100 : 0;
+  };
+
+  const calculatePunctualityRate = () => {
+    return report.total_present > 0 ? ((report.total_present - report.total_late) / report.total_present) * 100 : 0;
+  };
+
+  const calculateOvertimeRate = () => {
+    return report.total_present > 0 ? (report.total_overtime / report.total_present) * 100 : 0;
+  };
+
   return (
     <div className="space-y-6">
       {/* Main Statistics */}
@@ -134,12 +156,12 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ report }) => {
                   fill="none"
                   stroke="#3b82f6"
                   strokeWidth="3"
-                  strokeDasharray={`${report.attendance_percentage}, 100`}
+                  strokeDasharray={`${getAttendancePercentage()}, 100`}
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-2xl font-bold text-gray-800">
-                  {report.attendance_percentage}%
+                  {report.attendance_percentage !== null ? `${report.attendance_percentage}%` : 'N/A'}
                 </span>
               </div>
             </div>
@@ -153,7 +175,7 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ report }) => {
           <h3 className="text-lg font-semibold mb-4">Working Hours</h3>
           <div className="text-center">
             <div className="text-4xl font-bold text-gray-800 mb-2">
-              {report.avg_daily_hours.toFixed(1)}
+              {report.avg_daily_hours !== null ? getAvgDailyHours().toFixed(1) : 'N/A'}
             </div>
             <p className="text-sm text-gray-600">Average Daily Hours</p>
           </div>
@@ -161,7 +183,10 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ report }) => {
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-600">Total Hours Worked</span>
               <span className="font-medium">
-                {(report.avg_daily_hours * report.total_days).toFixed(1)} hrs
+                {report.avg_daily_hours !== null && report.total_days > 0 
+                  ? (getAvgDailyHours() * report.total_days).toFixed(1) + ' hrs'
+                  : 'N/A'
+                }
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -183,19 +208,19 @@ const MonthlyReport: React.FC<MonthlyReportProps> = ({ report }) => {
           <div>
             <p className="text-sm text-gray-600">Absenteeism Rate</p>
             <p className="font-medium text-red-600">
-              {((report.total_absent / (report.total_present + report.total_absent)) * 100).toFixed(1)}%
+              {calculateAbsenteeismRate().toFixed(1)}%
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Punctuality Rate</p>
             <p className="font-medium text-green-600">
-              {(((report.total_present - report.total_late) / report.total_present) * 100).toFixed(1)}%
+              {calculatePunctualityRate().toFixed(1)}%
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Overtime Rate</p>
             <p className="font-medium text-purple-600">
-              {((report.total_overtime / report.total_present) * 100).toFixed(1)}%
+              {calculateOvertimeRate().toFixed(1)}%
             </p>
           </div>
         </div>

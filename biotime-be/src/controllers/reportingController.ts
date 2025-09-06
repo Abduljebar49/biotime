@@ -114,7 +114,7 @@ export class ReportingController {
       });
     }
   }
-
+ 
   static async getAttendanceTrend(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { days } = request.query as { days?: string };

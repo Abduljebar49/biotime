@@ -101,27 +101,37 @@ export class ReportingService {
 
   static async getWeeklyReport(): Promise<any[]> {
     const sql = `
-      SELECT 
-        att.att_date,
-        TO_CHAR(att.att_date, 'Day') as week_day,
-        COUNT(DISTINCT emp.id) as total_employees,
-        COUNT(CASE WHEN att.clock_in IS NOT NULL THEN 1 END) as present,
-        COUNT(CASE WHEN att.clock_in IS NULL THEN 1 END) as absent,
-        COUNT(CASE WHEN att.clock_in::time > '09:00:00' THEN 1 END) as late,
-        COUNT(CASE WHEN att.clock_out IS NOT NULL AND att.clock_out::time < '17:00:00' THEN 1 END) as early_leave,
-        COUNT(CASE WHEN EXTRACT(EPOCH FROM (att.clock_out - att.clock_in))/3600 > 8 THEN 1 END) as overtime,
-        ROUND(
-          COUNT(CASE WHEN att.clock_in IS NOT NULL THEN 1 END) * 100.0 / 
-          NULLIF(COUNT(att.att_date), 0), 
-          2
-        ) as attendance_percentage
-      FROM att_payloadtimecard att
-      INNER JOIN personnel_employee emp ON att.emp_id = emp.id
-      WHERE att.att_date BETWEEN date_trunc('week', CURRENT_DATE) AND date_trunc('week', CURRENT_DATE) + INTERVAL '6 days'
-        AND emp.is_active = true
-      GROUP BY att.att_date
-      ORDER BY att.att_date
-    `;
+    SELECT 
+      week_dates.att_date,
+      TO_CHAR(week_dates.att_date, 'Day') as week_day,
+      COUNT(DISTINCT emp.id) as total_employees,
+      COUNT(CASE WHEN att.clock_in IS NOT NULL THEN 1 END) as present,
+      COUNT(CASE WHEN att.clock_in IS NULL THEN 1 END) as absent,
+      COUNT(CASE WHEN att.clock_in::time > '09:00:00' THEN 1 END) as late,
+      COUNT(CASE WHEN att.clock_out IS NOT NULL AND att.clock_out::time < '17:00:00' THEN 1 END) as early_leave,
+      COUNT(CASE WHEN EXTRACT(EPOCH FROM (att.clock_out - att.clock_in))/3600 > 8 THEN 1 END) as overtime,
+      ROUND(
+        COUNT(CASE WHEN att.clock_in IS NOT NULL THEN 1 END) * 100.0 / 
+        NULLIF(COUNT(DISTINCT emp.id), 0), 
+        2
+      ) as attendance_percentage
+    FROM (
+      -- Generate all dates for the current week
+      SELECT generate_series(
+        date_trunc('week', CURRENT_DATE)::date,
+        LEAST(date_trunc('week', CURRENT_DATE)::date + INTERVAL '6 days', CURRENT_DATE)::date,
+        '1 day'::interval
+      )::date as att_date
+    ) week_dates
+    CROSS JOIN personnel_employee emp
+    LEFT JOIN att_payloadtimecard att ON emp.id = att.emp_id 
+      AND att.att_date = week_dates.att_date
+    WHERE emp.is_active = true
+      AND week_dates.att_date <= CURRENT_DATE
+    GROUP BY week_dates.att_date
+    ORDER BY week_dates.att_date
+  `;
+
     const result = await query(sql);
     return result.rows;
   }
