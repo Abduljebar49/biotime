@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],                         // Add standard library support
+    "strict": true,                            // Enables all strict type checks
+    "esModuleInterop": true,                   // Allow default imports from CJS modules
+    "skipLibCheck": true,                      // Speeds up build by skipping type checking of node_modules
+    "outDir": "./dist",                        // Output directory
+    "rootDir": "./src",                        // Source directory
+    "resolveJsonModule": true,                 // Allows importing `.json` files
+    "experimentalDecorators": true,            // Required for TypeORM & class-transformer
+    "emitDecoratorMetadata": true,             // Required for TypeORM
+    "forceConsistentCasingInFileNames": true,  // Helps avoid casing issues
+    "typeRoots": ["./node_modules/@types", "./src/types"], // Add custom types
+    // "moduleResolution": "node"                 // Ensures proper resolution logic for node modules
+  },
+  "include": ["src/**/*.ts", "src/types/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
