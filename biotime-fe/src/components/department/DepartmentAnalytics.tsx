@@ -23,13 +23,20 @@ const DepartmentAnalytics: React.FC<DepartmentAnalyticsProps> = ({
 }) => {
   const trendChartRef = useRef<HTMLCanvasElement>(null);
   const performanceChartRef = useRef<HTMLCanvasElement>(null);
+  const trendChartInstance = useRef<Chart | null>(null);
+  const performanceChartInstance = useRef<Chart | null>(null);
 
   useEffect(() => {
     if (trendChartRef.current && trend.length > 0) {
       const ctx = trendChartRef.current.getContext("2d");
 
       if (ctx) {
-        new Chart(ctx, {
+        // Destroy previous chart instance if it exists
+        if (trendChartInstance.current) {
+          trendChartInstance.current.destroy();
+        }
+
+        trendChartInstance.current = new Chart(ctx, {
           type: "line",
           data: {
             labels: trend.map((item) => item.month),
@@ -68,6 +75,14 @@ const DepartmentAnalytics: React.FC<DepartmentAnalyticsProps> = ({
         });
       }
     }
+
+    // Cleanup function to destroy chart on unmount
+    return () => {
+      if (trendChartInstance.current) {
+        trendChartInstance.current.destroy();
+        trendChartInstance.current = null;
+      }
+    };
   }, [trend]);
 
   useEffect(() => {
@@ -75,7 +90,12 @@ const DepartmentAnalytics: React.FC<DepartmentAnalyticsProps> = ({
       const ctx = performanceChartRef.current.getContext("2d");
 
       if (ctx) {
-        new Chart(ctx, {
+        // Destroy previous chart instance if it exists
+        if (performanceChartInstance.current) {
+          performanceChartInstance.current.destroy();
+        }
+
+        performanceChartInstance.current = new Chart(ctx, {
           type: "bar",
           data: {
             labels: performance.map((item) => item.dept_name),
@@ -110,6 +130,14 @@ const DepartmentAnalytics: React.FC<DepartmentAnalyticsProps> = ({
         });
       }
     }
+
+    // Cleanup function to destroy chart on unmount
+    return () => {
+      if (performanceChartInstance.current) {
+        performanceChartInstance.current.destroy();
+        performanceChartInstance.current = null;
+      }
+    };
   }, [performance]);
 
   return (
@@ -136,7 +164,7 @@ const DepartmentAnalytics: React.FC<DepartmentAnalyticsProps> = ({
             Attendance Trend (Last 6 Months)
           </h3>
           <div className="h-64">
-            <canvas ref={trendChartRef}></canvas>
+            <canvas ref={trendChartRef} key="trend-chart"></canvas>
           </div>
         </div>
 
@@ -146,7 +174,7 @@ const DepartmentAnalytics: React.FC<DepartmentAnalyticsProps> = ({
             Department Performance Comparison
           </h3>
           <div className="h-64">
-            <canvas ref={performanceChartRef}></canvas>
+            <canvas ref={performanceChartRef} key="performance-chart"></canvas>
           </div>
         </div>
       </div>
@@ -192,10 +220,12 @@ const DepartmentAnalytics: React.FC<DepartmentAnalyticsProps> = ({
 
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <div className="text-2xl font-bold text-purple-600">
-                {trend.reduce(
-                  (sum, item) => sum + parseInt(item.total_employees),
-                  0
-                ) / trend.length}
+                {Math.round(
+                  trend.reduce(
+                    (sum, item) => sum + parseInt(item.total_employees),
+                    0
+                  ) / trend.length
+                )}
               </div>
               <div className="text-sm text-purple-800">Avg Employees</div>
             </div>
