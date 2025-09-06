@@ -6,20 +6,20 @@ export class AttendanceService {
   // Get detailed attendance records with comprehensive information
   static async getAttendanceRecords(filters: AttendanceFilters): Promise<AttendanceRecord[]> {
     const { employeeId, departmentId, startDate, endDate } = filters;
-    
+
     let whereClause = `WHERE att.att_date BETWEEN $1 AND $2`;
     const params: any[] = [startDate, endDate];
-    
+
     if (employeeId) {
       params.push(employeeId);
       whereClause += ` AND emp.id = $${params.length}`;
     }
-    
+
     if (departmentId) {
       params.push(departmentId);
       whereClause += ` AND emp.department_id = $${params.length}`;
     }
-    
+
     const sql = `
       SELECT 
         emp.id as employee_id,
@@ -32,7 +32,16 @@ export class AttendanceService {
         TO_CHAR(att.att_date, 'Day') as week_day,
         att.clock_in,
         att.clock_out,
-        EXTRACT(EPOCH FROM (att.clock_out - att.clock_in))/3600 as hours_worked,
+        -- Extract hours_worked from payload JSON with proper casting
+        CASE 
+          WHEN (att.payload::jsonb)->'worked_hrs'->>'duration' IS NOT NULL 
+            THEN ((att.payload::jsonb)->'worked_hrs'->>'duration')::numeric / 3600
+          WHEN (att.payload::jsonb)->'duration'->>'duration' IS NOT NULL 
+            THEN ((att.payload::jsonb)->'duration'->>'duration')::numeric / 3600
+          WHEN att.clock_out IS NOT NULL AND att.clock_in IS NOT NULL 
+            THEN EXTRACT(EPOCH FROM (att.clock_out - att.clock_in))/3600 
+          ELSE 0
+        END as hours_worked,
         att.check_in,
         att.check_out,
         att.work_day,
@@ -41,7 +50,18 @@ export class AttendanceService {
           WHEN att.clock_in IS NULL THEN 'absent'
           WHEN att.clock_in::time > '09:00:00' THEN 'late'
           WHEN att.clock_out IS NOT NULL AND att.clock_out::time < '17:00:00' THEN 'early_leave'
-          WHEN EXTRACT(EPOCH FROM (att.clock_out - att.clock_in))/3600 > 8 THEN 'overtime'
+          -- Use the same logic for overtime calculation
+          WHEN (
+            CASE 
+              WHEN (att.payload::jsonb)->'worked_hrs'->>'duration' IS NOT NULL 
+                THEN ((att.payload::jsonb)->'worked_hrs'->>'duration')::numeric / 3600
+              WHEN (att.payload::jsonb)->'duration'->>'duration' IS NOT NULL 
+                THEN ((att.payload::jsonb)->'duration'->>'duration')::numeric / 3600
+              WHEN att.clock_out IS NOT NULL AND att.clock_in IS NOT NULL 
+                THEN EXTRACT(EPOCH FROM (att.clock_out - att.clock_in))/3600 
+              ELSE 0
+            END
+          ) > 8 THEN 'overtime'
           ELSE 'present'
         END as status,
         CASE 
@@ -60,7 +80,7 @@ export class AttendanceService {
       ${whereClause}
       ORDER BY att.att_date DESC, emp.first_name, emp.last_name
     `;
-    
+
     const result = await query(sql, params);
     return result.rows;
   }
@@ -68,15 +88,15 @@ export class AttendanceService {
   // Get attendance summary (counts by status with detailed breakdown)
   static async getAttendanceSummary(filters: AttendanceFilters): Promise<AttendanceSummary[]> {
     const { departmentId, startDate, endDate } = filters;
-    
+
     let whereClause = `WHERE att.att_date BETWEEN $1 AND $2`;
     const params: any[] = [startDate, endDate];
-    
+
     if (departmentId) {
       params.push(departmentId);
       whereClause += ` AND emp.department_id = $${params.length}`;
     }
-    
+
     const sql = `
       SELECT 
         att.att_date as date,
@@ -99,7 +119,7 @@ export class AttendanceService {
       GROUP BY att.att_date
       ORDER BY att.att_date DESC
     `;
-    
+
     const result = await query(sql, params);
     return result.rows;
   }
@@ -108,12 +128,12 @@ export class AttendanceService {
   static async getAbsentEmployees(date: Date, departmentId?: number): Promise<any[]> {
     let whereClause = `WHERE att.att_date = $1 AND att.clock_in IS NULL`;
     const params: any[] = [date];
-    
+
     if (departmentId) {
       params.push(departmentId);
       whereClause += ` AND emp.department_id = $${params.length}`;
     }
-    
+
     const sql = `
       SELECT 
         emp.id,
@@ -139,7 +159,7 @@ export class AttendanceService {
       ${whereClause}
       ORDER BY dept.dept_name, emp.first_name, emp.last_name
     `;
-    
+
     const result = await query(sql, params);
     return result.rows;
   }
@@ -148,12 +168,12 @@ export class AttendanceService {
   static async getLateEmployees(date: Date, departmentId?: number): Promise<any[]> {
     let whereClause = `WHERE att.att_date = $1 AND att.clock_in::time > '09:00:00'`;
     const params: any[] = [date];
-    
+
     if (departmentId) {
       params.push(departmentId);
       whereClause += ` AND emp.department_id = $${params.length}`;
     }
-    
+
     const sql = `
       SELECT 
         emp.id,
@@ -171,7 +191,7 @@ export class AttendanceService {
       ${whereClause}
       ORDER BY minutes_late DESC, dept.dept_name, emp.first_name
     `;
-    
+
     const result = await query(sql, params);
     return result.rows;
   }
@@ -180,12 +200,12 @@ export class AttendanceService {
   static async getEarlyLeaveEmployees(date: Date, departmentId?: number): Promise<any[]> {
     let whereClause = `WHERE att.att_date = $1 AND att.clock_out IS NOT NULL AND att.clock_out::time < '17:00:00'`;
     const params: any[] = [date];
-    
+
     if (departmentId) {
       params.push(departmentId);
       whereClause += ` AND emp.department_id = $${params.length}`;
     }
-    
+
     const sql = `
       SELECT 
         emp.id,
@@ -203,7 +223,7 @@ export class AttendanceService {
       ${whereClause}
       ORDER BY minutes_early DESC, dept.dept_name, emp.first_name
     `;
-    
+
     const result = await query(sql, params);
     return result.rows;
   }
@@ -212,12 +232,12 @@ export class AttendanceService {
   static async getOvertimeEmployees(date: Date, departmentId?: number): Promise<any[]> {
     let whereClause = `WHERE att.att_date = $1 AND EXTRACT(EPOCH FROM (att.clock_out - att.clock_in))/3600 > 8`;
     const params: any[] = [date];
-    
+
     if (departmentId) {
       params.push(departmentId);
       whereClause += ` AND emp.department_id = $${params.length}`;
     }
-    
+
     const sql = `
       SELECT 
         emp.id,
@@ -237,17 +257,17 @@ export class AttendanceService {
       ${whereClause}
       ORDER BY overtime_hours DESC, dept.dept_name, emp.first_name
     `;
-    
+
     const result = await query(sql, params);
     return result.rows;
   }
 
   // Get employees with repeated absences/late arrivals (3+ times in a month)
   static async getRepeatedViolations(month: number, year: number, violationType: 'absent' | 'late'): Promise<any[]> {
-    const condition = violationType === 'absent' 
-      ? 'att.clock_in IS NULL' 
+    const condition = violationType === 'absent'
+      ? 'att.clock_in IS NULL'
       : 'att.clock_in::time > \'09:00:00\'';
-    
+
     const sql = `
       SELECT 
         emp.id,
@@ -267,7 +287,7 @@ export class AttendanceService {
       HAVING COUNT(*) >= 3
       ORDER BY violation_count DESC, dept.dept_name, emp.first_name
     `;
-    
+
     const result = await query(sql, [month, year]);
     return result.rows;
   }
@@ -276,7 +296,7 @@ export class AttendanceService {
   static async getAttendanceByPeriod(periodType: 'day' | 'week' | 'month' | 'custom', startDate: Date, endDate?: Date): Promise<any[]> {
     let dateCondition = '';
     const params: any[] = [];
-    
+
     switch (periodType) {
       case 'day':
         dateCondition = `att.att_date = $1`;
@@ -297,7 +317,7 @@ export class AttendanceService {
         params.push(startDate, endDate);
         break;
     }
-    
+
     const sql = `
       SELECT 
         emp.id as employee_id,
@@ -322,7 +342,7 @@ export class AttendanceService {
       GROUP BY emp.id, emp.emp_code, emp.first_name, emp.last_name, dept.dept_name
       ORDER BY dept.dept_name, emp.first_name, emp.last_name
     `;
-    
+
     const result = await query(sql, params);
     return result.rows;
   }
@@ -330,7 +350,7 @@ export class AttendanceService {
   // Get department-wise attendance summary with detailed metrics
   static async getDepartmentAttendanceSummary(filters: AttendanceFilters): Promise<any[]> {
     const { startDate, endDate } = filters;
-    
+
     const sql = `
       SELECT 
         dept.id as department_id,
@@ -353,7 +373,7 @@ export class AttendanceService {
       GROUP BY dept.id, dept.dept_name
       ORDER BY attendance_percentage DESC, dept.dept_name
     `;
-    
+
     const result = await query(sql, [startDate, endDate]);
     return result.rows;
   }
@@ -388,7 +408,7 @@ export class AttendanceService {
       WHERE emp.id = $1
       GROUP BY emp.id, emp.emp_code, emp.first_name, emp.last_name, dept.dept_name
     `;
-    
+
     const result = await query(sql, [employeeId, month, year]);
     return result.rows[0] || null;
   }
@@ -416,7 +436,7 @@ export class AttendanceService {
       ORDER BY p.clock_in DESC
       LIMIT $1
     `;
-    
+
     const result = await query(sql, [limit]);
     return result.rows;
   }
