@@ -141,6 +141,8 @@ const AttendanceRecords: React.FC = () => {
     return classes[status] || "bg-gray-100 text-gray-800";
   };
 
+  console.log("paginated : ",paginatedRecords)
+
   if (loading && attendanceRecords.length === 0) {
     return <LoadingSpinner />;
   }

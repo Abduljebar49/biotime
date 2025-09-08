@@ -291,8 +291,7 @@ export const useAttendanceStore = create<AttendanceStore>()(
           params: { startDate, endDate }
         });
         const records = response.data;
-        
-        set({ 
+        set({
           attendanceRecords: records,
           loading: false 
         });
